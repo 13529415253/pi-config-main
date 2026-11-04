@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 直接调用当前 Orca 运行实例中的内置 CLI，避免 AppRun 改写 Electron Node 参数。
+# 直接调用当前 Orca 运行实例中的内置 CLI，避免 AppRun / Electron 改写 Node 参数。
+# 兼容两种布局：
+#   Linux AppImage：<mount>/orca-ide + <mount>/resources/app.asar.unpacked/out/cli/index.js
+#   macOS App 包：  /Applications/Orca.app/Contents/MacOS/Orca + Contents/Resources/app.asar.unpacked/out/cli/index.js
 find_mount() {
   local candidate base
 
@@ -23,15 +26,36 @@ find_mount() {
   return 1
 }
 
+find_macos_mount() {
+  local base
+  for base in "${ORCA_APP_PATH:-/Applications/Orca.app}/Contents" "$HOME/Applications/Orca.app/Contents"; do
+    if [[ -x "$base/MacOS/Orca" && -f "$base/Resources/app.asar.unpacked/out/cli/index.js" ]]; then
+      printf '%s\n' "$base"
+      return 0
+    fi
+  done
+  return 1
+}
+
 MOUNT="$(find_mount || true)"
-if [[ -z "$MOUNT" ]]; then
+if [[ -n "$MOUNT" ]]; then
+  BIN="$MOUNT/orca-ide"
+  CLI_ENTRY="$MOUNT/resources/app.asar.unpacked/out/cli/index.js"
+else
+  MOUNT="$(find_macos_mount || true)"
+  BIN="$MOUNT/MacOS/Orca"
+  CLI_ENTRY="$MOUNT/Resources/app.asar.unpacked/out/cli/index.js"
+fi
+
+if [[ -z "$MOUNT" || ! -x "$BIN" || ! -f "$CLI_ENTRY" ]]; then
   echo "未找到正在运行的 Orca 实例，请先启动 Orca。" >&2
   exit 1
 fi
 
+export ORCA_CLI_ENTRY="$CLI_ENTRY"
 export ORCA_NODE_OPTIONS="${NODE_OPTIONS-}"
 export ORCA_NODE_REPL_EXTERNAL_MODULE="${NODE_REPL_EXTERNAL_MODULE-}"
 unset NODE_OPTIONS
 unset NODE_REPL_EXTERNAL_MODULE
 
-APPDIR="$MOUNT" ELECTRON_RUN_AS_NODE=1 exec "$MOUNT/orca-ide" -e '(async()=>{try{const path=require("path");const cli=path.join(process.env.APPDIR,"resources","app.asar.unpacked","out","cli","index.js");await Promise.resolve(require(cli).main(process.argv.slice(1)));}catch(error){console.error(error&&error.stack?error.stack:String(error));process.exit(1);}})();' -- "$@"
+APPDIR="$MOUNT" ELECTRON_RUN_AS_NODE=1 exec "$BIN" -e '(async()=>{try{await Promise.resolve(require(process.env.ORCA_CLI_ENTRY).main(process.argv.slice(1)));}catch(error){console.error(error&&error.stack?error.stack:String(error));process.exit(1);}})();' -- "$@"

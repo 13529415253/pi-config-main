@@ -1,5 +1,5 @@
 ---
-description: 同步项目计划核心提示词、执行计划自检并重建 HTML
+description: 同步全局计划核心提示词、执行计划自检并重建 HTML
 author: fang
 ---
 
@@ -17,16 +17,16 @@ node ~/.agents/skills/plan-start/scripts/plan-mode.mjs sync
 
 1. 先只读检查 `active.json`，仅当 `mode=active`、需求字段存在且计划 `index.md` 存在时继续；
 2. 如果计划未开启、已关闭、active 文件缺失、需求目录缺失或自检出现阻断错误，立即退出，不写入 `AGENTS.md`，不构建；
-3. 将最新核心提示词同步到当前项目 `AGENTS.md` 的受管控区块；
-4. 保留 `AGENTS.md` 其他所有内容；
+3. 将最新核心提示词同步到**全局** `AGENTS.md`（pi 为 `~/.pi/agent/AGENTS.md`）的受管控区块，不再写入项目 `AGENTS.md`；
+4. 保留全局 `AGENTS.md` 其他所有内容；
 5. 检查 `active.json`、`index.md`、步骤文件、责任与协作小节、实施批次、待讨论接口设计/代码设计门禁和 Review 基础结构；
 6. 自检无阻断错误后，重新构建当前计划 HTML；
 7. 不重建、不删除、不覆盖任何计划源文件，不增加文档版本，不改变步骤状态。
 
 执行完成后提醒用户：
 
-- Pi 会在启动时读取 `AGENTS.md`；当前会话需要执行一次 `/reload` 才会重新加载修改后的 context files；
+- Pi 在启动时读取 context files（含全局 `AGENTS.md`）；当前会话需要执行一次 `/reload` 才会重新加载修改后的规则；
 - 浏览器页面需要使用浏览器原生刷新查看最新 HTML；
 - 如果自检出现警告，应先处理警告再进入下一批实施；
 - 新步骤或历史步骤新增批次必须先确认所有普通待讨论点、接口设计点和代码设计点；批次 Review 需补充接口变更清单和代码结构与调用清单，并完成理解验收。
-- 如果当前项目存在 `AGENTS.override.md`，Pi 会优先读取它，需要人工确认计划区块是否也应同步到该文件。
+- 若当前项目 `AGENTS.md` 仍含历史受管控区块（`<!-- PLAN-MODE:BEGIN -->`），执行 `node ~/.agents/skills/plan-start/scripts/plan-mode.mjs remove --project` 清理，避免同规则在项目内重复。

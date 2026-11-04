@@ -80,6 +80,24 @@ ORCA_WORKSPACE_ID
 /Users/gcf/.pi/agent/bin/orca-cli-safe skills get orca-cli
 ```
 
+### macOS 路径兼容（2026-10-29 补充）
+
+包装器已兼容两种布局，不需要手工拼命令：
+
+- Linux AppImage：`/tmp/.mount_orca-*` 下的 `orca-ide` + `resources/app.asar.unpacked/out/cli/index.js`
+- macOS App 包：`/Applications/Orca.app/Contents/MacOS/Orca` + `Contents/Resources/app.asar.unpacked/out/cli/index.js`（主程序以 `ELECTRON_RUN_AS_NODE=1` 运行内置 CLI）
+
+自定义安装位置可用 `ORCA_APP_PATH=/path/to/Orca.app` 覆盖。
+
+自检两步，都成功才具备复测条件：
+
+```text
+/Users/gcf/.pi/agent/bin/orca-cli-safe status --json      # app.running=true、runtime.state=ready
+/Users/gcf/.pi/agent/bin/orca-cli-safe tab list --json    # 找到已登录标签，记下 browserPageId
+```
+
+`tab create` 会新增并激活一个标签（同一 profile 共享登录态），复测完用 `tab close --index <n>` 关掉，并用 `tab switch --index 0` 把用户原来的标签切回前台。
+
 ## 四、Orca 浏览器操作流程
 
 使用 Orca 时遵循“检查标签页—操作—重新读取”的流程：
